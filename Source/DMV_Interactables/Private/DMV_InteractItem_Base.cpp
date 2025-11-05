@@ -21,13 +21,25 @@ ADMV_InteractItem_Base::ADMV_InteractItem_Base()
 	OuterInteractIcon->SetupAttachment(RootComponent);
 	
 	TargetComponent = CreateDefaultSubobject<UDMVTargetComponent>(TEXT("TargetComponent"));
-	TargetComponent->SetupAttachment(RootComponent);
+	//TargetComponent->SetupAttachment(RootComponent);
 
+	InteractComponent = CreateDefaultSubobject<UInteractComponent>(TEXT("InteractComponent"));
+	
 	if (Item_Data)
 	{
 		OuterInteractIcon->SetRelativeLocation(Item_Data->ItemBasicData.IconLocation);
 		InnerInteractIcon->SetRelativeLocation(Item_Data->ItemBasicData.IconLocation);
 		Mesh->SetStaticMesh(Item_Data->ItemBasicData.StaticMesh);
 	}
+}
+
+void ADMV_InteractItem_Base::IncreateStep()
+{
+	InteractStep++;
+}
+
+int32 ADMV_InteractItem_Base::GetCurrentStep()
+{
+	return InteractStep;
 }
 

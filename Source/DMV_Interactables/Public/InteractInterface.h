@@ -27,6 +27,9 @@ public:
 	void UnHover();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Player Interaction")
+	void RemoteActivation(bool Activate);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Player Interaction")
 	bool Interact(AActor* Interactor);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Player Interaction")
