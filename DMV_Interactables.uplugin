@@ -1,5 +1,6 @@
 {
 	"FileVersion": 3,
+	"EngineAssociation": "5.7",
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "DMV_Interactables",
