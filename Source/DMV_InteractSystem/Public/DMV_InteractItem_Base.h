@@ -13,7 +13,7 @@
 #include "DMV_InteractItem_Base.generated.h"
 
 UCLASS()
-class DMV_INTERACTABLES_API ADMV_InteractItem_Base : public AActor, public IInteractInterface
+class DMV_INTERACTSYSTEM_API ADMV_InteractItem_Base : public AActor, public IInteractInterface
 {
 	GENERATED_BODY()
 

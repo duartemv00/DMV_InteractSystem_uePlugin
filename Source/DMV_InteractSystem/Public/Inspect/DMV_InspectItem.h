@@ -9,7 +9,7 @@
 #include "DMV_InspectItem.generated.h"
 
 UCLASS()
-class DMV_INTERACTABLES_API ADMV_InspectItem : public AActor, public IInteractInterface
+class DMV_INTERACTSYSTEM_API ADMV_InspectItem : public AActor, public IInteractInterface
 {
 	GENERATED_BODY()
 

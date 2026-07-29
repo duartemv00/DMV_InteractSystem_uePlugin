@@ -10,7 +10,7 @@
  * 
  */
 UCLASS(BlueprintType, EditInlineNew, Blueprintable)
-class DMV_INTERACTABLES_API UDMV_InteractAbility_Base : public UObject
+class DMV_INTERACTSYSTEM_API UDMV_InteractAbility_Base : public UObject
 {
 	GENERATED_BODY()
 

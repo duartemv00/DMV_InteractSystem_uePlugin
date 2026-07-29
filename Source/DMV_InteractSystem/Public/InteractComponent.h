@@ -8,7 +8,7 @@
 
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class DMV_INTERACTABLES_API UInteractComponent : public UActorComponent
+class DMV_INTERACTSYSTEM_API UInteractComponent : public UActorComponent
 {
 	GENERATED_BODY()
 

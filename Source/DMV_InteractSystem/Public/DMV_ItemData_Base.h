@@ -399,7 +399,7 @@ struct FInteractableData_ProximityInteract
  * Basic data of the Interactable Items, not related with interaction itself but with the visuals
  */
 UCLASS()
-class DMV_INTERACTABLES_API UDMV_ItemData_Base : public UDataAsset
+class DMV_INTERACTSYSTEM_API UDMV_ItemData_Base : public UDataAsset
 {
 	GENERATED_BODY()
 
@@ -414,7 +414,7 @@ public:
  * Data related with input interaction.
  */
 UCLASS()
-class DMV_INTERACTABLES_API UXM_InputInteraction_Data : public UDataAsset
+class DMV_INTERACTSYSTEM_API UXM_InputInteraction_Data : public UDataAsset
 {
 	GENERATED_BODY()
 
@@ -432,7 +432,7 @@ public:
  * Data related with Damage Interaction.
  */
 UCLASS()
-class DMV_INTERACTABLES_API UXM_DamageInteraction_Data : public UDataAsset
+class DMV_INTERACTSYSTEM_API UXM_DamageInteraction_Data : public UDataAsset
 {
 	GENERATED_BODY()
 
@@ -450,7 +450,7 @@ public:
  * Data related with Proximity Interaction.
  */
 UCLASS()
-class DMV_INTERACTABLES_API UXM_ProximityInteraction_Data : public UDataAsset
+class DMV_INTERACTSYSTEM_API UXM_ProximityInteraction_Data : public UDataAsset
 {
 	GENERATED_BODY()
 

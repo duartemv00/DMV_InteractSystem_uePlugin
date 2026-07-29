@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class DMV_Interactables : ModuleRules
+public class DMV_InteractSystem : ModuleRules
 {
-	public DMV_Interactables(ReadOnlyTargetRules Target) : base(Target)
+	public DMV_InteractSystem(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		

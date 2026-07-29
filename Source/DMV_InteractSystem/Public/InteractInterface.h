@@ -12,7 +12,7 @@ class UInteractInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class DMV_INTERACTABLES_API IInteractInterface
+class DMV_INTERACTSYSTEM_API IInteractInterface
 {
 	GENERATED_BODY()
 

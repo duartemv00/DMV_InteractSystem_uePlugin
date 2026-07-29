@@ -4,7 +4,7 @@
 
 #include "Modules/ModuleManager.h"
 
-class FDMV_InteractablesModule : public IModuleInterface
+class FDMV_InteractSystemModule : public IModuleInterface
 {
 public:
 
