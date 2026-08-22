@@ -3,10 +3,14 @@
 A plugin for actors the player can interact with: pick up, open, talk to, inspect up close, or
 trigger through proximity or by damaging them. Unlike `DMV_Traps` (Blueprint-first, thin C++),
 this plugin's data model and actor scaffolding are real C++ - `ADMV_InteractItem_Base`,
-`IInteractInterface`, and a large `UDataAsset` hierarchy describing multi-step interaction
-sequences. It depends on `DMV_TargetSystem` for detection: `ADMV_InteractItem_Base` owns a
-`UDMVTargetComponent`, matching the worked example in `DMV_TargetSystem`'s own README
-(`ID.TargetGroup.CanInteract`/`Interact`).
+`IInteractInterface`, `UDMVInteractorComponent`, and a large `UDataAsset` hierarchy describing
+multi-step interaction sequences.
+
+This plugin has **no dependency on any targeting/detection system, including `DMV_TargetSystem`**
+- a deliberate choice, not an oversight (see [Responsibilities](#responsibilities-what-belongs-in-this-plugin)).
+How a project decides "what should the player interact with" (a targeting plugin, a line trace,
+an overlap) is entirely outside this plugin's concern; it only ever reacts to being told the
+answer.
 
 **Status:** early. The C++ scaffolding (actor construction, component wiring, interface
 declarations) is in place, but almost every function body is an empty stub -
@@ -29,10 +33,19 @@ graphs - a strong signal, not a certainty.
 An interactable is an `ADMV_InteractItem_Base` (or a Blueprint subclass of it) driven by a
 `UDMV_ItemData_Base` data asset that describes *everything about how it behaves* - separately from
 the actor's own C++/Blueprint code, so a designer can build new interactables mostly by authoring
-data assets rather than new classes. `DMV_TargetSystem` handles "is the player looking at /
-in range of this" (via the `TargetComponent` every interactable owns); this plugin handles
-everything downstream of that: what happens when the player actually interacts, and what other
-things (proximity, damage) can trigger the same interaction machinery besides direct input.
+data assets rather than new classes. This plugin has no opinion on "is the player looking at/in
+range of this" - it starts from the moment some external system already has an `AActor*` reference
+to a potential interactable in hand, however that reference was obtained, and handles everything
+from there: what happens when the player actually interacts, and what other things (proximity,
+damage) can trigger the same interaction machinery besides direct input.
+
+The player side is `UDMVInteractorComponent`: a passive holder of "the current interactable"
+(`SetCurrentInteractable`/`GetCurrentInteractable`, fed by whatever targeting mechanism the project
+uses) plus one trigger-agnostic entry point, `TryInteract()`, that calls `IInteractInterface::Interact`
+on the current target. Anything can call `TryInteract` - a raw input handler, a `UGameplayAbility`'s
+`ActivateAbility` - the component doesn't know or care which. That's the whole contract: a project
+wires up its own way of finding a target and its own way of triggering an attempt, and this plugin
+does the rest.
 
 An interaction plays out as a sequence of **steps** (`FInteractionStep`), each with its own
 duration, cost/requisites (by `FGameplayTag`), rewards, feedback (VFX/anim/sound), and two logic
@@ -45,8 +58,9 @@ per-instance-configurable-instanced-object pattern `DMV_TargetSystem`'s Filters 
 | Concept | Class | Role |
 |---|---|---|
 | Interact interface | `IInteractInterface` (C++) | Declares the full interaction contract: `InRange`, `Hover(bool bGood)`, `UnHover`, `RemoteActivation(bool)`, `Interact(AActor*) -> bool`, `Inspect(AActor*, UStaticMesh*, FName, FName)`. All `BlueprintNativeEvent`s - default bodies are empty, subclasses override the ones they need. |
-| Interactable actor | `ADMV_InteractItem_Base` | The base actor: owns `Mesh`, inner/outer interact-prompt billboards, a `TargetComponent` (`DMV_TargetSystem`), an `InteractComponent`, and a `UDMV_ItemData_Base` reference. Tracks `InteractStep` (which step of the sequence it's currently on) and `ListensTo`/`Activates` actor arrays (for interactables that chain/gate each other - not yet implemented beyond the data fields). |
-| Interact component | `UInteractComponent` | Currently an empty scaffold (`BeginPlay` does nothing beyond `Super`) - presumably meant to hold future shared interact-side logic, distinct from the `TargetComponent`'s job of detection. |
+| Interactable actor | `ADMV_InteractItem_Base` | The base actor: owns `Mesh`, inner/outer interact-prompt billboards, an `InteractComponent`, and a `UDMV_ItemData_Base` reference. Tracks `InteractStep` (which step of the sequence it's currently on) and `ListensTo`/`Activates` actor arrays (for interactables that chain/gate each other - not yet implemented beyond the data fields). Owns no targeting/detection component of any kind - see [Design intent](#design-intent). |
+| Interact component (item side) | `UInteractComponent` | Currently an empty scaffold (`BeginPlay` does nothing beyond `Super`) - presumably meant to hold future shared interact-side logic. Distinct from `UDMVInteractorComponent` below, which is the *player*-side piece. |
+| Interactor component (player side) | `UDMVInteractorComponent` | Goes on whatever should be able to perform interactions (a player pawn/controller). Holds a passively-set `CurrentInteractable`, and exposes `TryInteract()` as the one trigger-agnostic entry point - see [Design intent](#design-intent). |
 | Per-step logic hook | `UDMV_InteractAbility_Base` | `EditInlineNew`/`Blueprintable` `UObject` - not a `UGameplayAbility`, and deliberately so (see [Responsibilities](#responsibilities-what-belongs-in-this-plugin)) - with one function, `ExecuteCustomLogic(ADMV_InteractItem_Base*)`. A per-instance-configurable instanced object, same pattern as `DMV_TargetSystem`'s filters. |
 | Item data | `UDMV_ItemData_Base` (+ `UXM_InputInteraction_Data`, `UXM_DamageInteraction_Data`, `UXM_ProximityInteraction_Data`) | `UDataAsset`s holding the data described in [Design intent](#design-intent) - see [Known gaps](#known-gaps--open-design-questions) for the `XM_` naming leftover. |
 | Inspect | `ADMV_InspectItem` | A separate interactable that implements only `Inspect` - swaps its mesh to the inspected item and presumably feeds a `SceneCaptureComponent2D` to `WBP_Inspect`/`RT_Inspect` for an up-close rotate-and-view UI. |
@@ -80,8 +94,14 @@ Established explicitly so scope doesn't drift as the plugin grows:
   "attribute" identified by a `FGameplayTag` - see the GAS note immediately below for why that
   can't be a `UAttributeSet`/`UGameplayEffect`; resolving the actual mechanism is unresolved, see
   Known gaps.
-- **`DMV_TargetSystem` is a hard dependency** for detection/targeting - this plugin doesn't
-  reimplement "what is the player currently looking at."
+- **No dependency on any targeting/detection system, `DMV_TargetSystem` included.** Deliberately
+  the opposite of an earlier draft of this document, which called `DMV_TargetSystem` a hard
+  dependency - reversed because inter-plugin coupling should only exist where 100% necessary, and
+  it isn't here. `UDMVInteractorComponent` only ever receives a target via `SetCurrentInteractable`;
+  it never asks any targeting system for one, and this plugin has zero build dependency on
+  `DMV_TargetSystem` (removed from `DMV_InteractSystem.Build.cs`, and `ADMV_InteractItem_Base` no
+  longer owns a `UDMVTargetComponent`). A project is free to feed `SetCurrentInteractable` from
+  `DMV_TargetSystem`, a line trace, or anything else - this plugin doesn't know or care which.
 - **No direct dependency on the Gameplay Ability System.** No `UGameplayAbility`,
   `UAbilitySystemComponent`, `UGameplayEffect`, or `UAttributeSet` anywhere in this plugin, and
   `DMV_InteractSystem.Build.cs` never depends on the `GameplayAbilities` module - only
@@ -95,11 +115,18 @@ Established explicitly so scope doesn't drift as the plugin grows:
 
 ## Known gaps / open design questions
 
-- **Nearly all C++ behavior is an empty stub.** `UInteractComponent::BeginPlay`,
+- **Most C++ behavior is still an empty stub.** `UInteractComponent::BeginPlay`,
   `UDMV_InteractAbility_Base::ExecuteCustomLogic_Implementation`, and `ADMV_InteractItem_Base`'s
   (non-)override of every `IInteractInterface` function are all either empty or absent. The step
-  sequence, reward granting, and every trigger type described above exist only as data structures
-  today, not as running logic.
+  sequence, reward granting, and the proximity/damage trigger types described above exist only as
+  data structures today, not as running logic. `UDMVInteractorComponent`'s activation path
+  (`SetCurrentInteractable`/`TryInteract`) is the one piece of this plugin that's actually
+  implemented end to end - see Recent history.
+- **`UDMVInteractorComponent::TryInteract` doesn't manage the `Hover`/`UnHover`/`InRange` part of
+  `IInteractInterface`'s contract** - only `Interact` itself. Wiring those up (e.g. calling
+  `UnHover`/`InRange` on the old/new target when `SetCurrentInteractable` changes) was deliberately
+  left out of the first pass to keep it to exactly what was asked for; a natural next step once
+  there's a concrete need for hover-state UI feedback.
 - **Melee fields are baked directly into `FInteractionStep`**, which conflicts with the "combat
   resolution is out of scope" decision above - `MeleeEffectRange`/`NumberOfEnemiesAffectedByMelee`/
   `Strength`/`bCanStun`/`StunTime` should likely move behind the same `StepLogic_Start`/
@@ -117,3 +144,21 @@ Established explicitly so scope doesn't drift as the plugin grows:
   likely placeholders, same status as some `DMV_Traps` trap types.
 - **A minigame is referenced only in a comment** (`FInteractionStep`: `// MINIGAME`, no fields
   under it) - a step type mentioned as planned but with zero data model or logic behind it yet.
+
+## Recent history
+
+- Added `UDMVInteractorComponent`, the player-side half of "an actor is referenced and the
+  interaction input is pressed" - see [Design intent](#design-intent). It's deliberately minimal:
+  a passive `CurrentInteractable` set from outside, and one `TryInteract()` entry point that any
+  trigger (input, a `UGameplayAbility`) can call.
+- Removed this plugin's dependency on `DMV_TargetSystem` entirely: `ADMV_InteractItem_Base` no
+  longer has a `TargetComponent`, and `DMV_TargetSystem` is gone from
+  `DMV_InteractSystem.Build.cs`'s `PublicDependencyModuleNames`. This reverses what an earlier
+  version of this document called a hard dependency - see the note under
+  [Responsibilities](#responsibilities-what-belongs-in-this-plugin) for why. Existing Blueprints
+  that inherited the now-removed `TargetComponent` (`BP_Door`, `BP_2Door`, `BP_InteractItem_Base`,
+  `BP_NPC`, `BP_InspectExample`) will simply lose that component on next compile - it had no
+  callable behavior of its own for any graph to have depended on.
+- Declared a plugin-level dependency on Niagara in `DMV_InteractSystem.uplugin` (the module already
+  depended on the Niagara module; UBT was warning about the missing plugin-level declaration) - the
+  same fix `DMV_TargetSystem` needed for the same reason.

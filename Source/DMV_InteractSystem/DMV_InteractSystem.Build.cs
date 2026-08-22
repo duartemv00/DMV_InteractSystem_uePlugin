@@ -24,7 +24,7 @@ public class DMV_InteractSystem : ModuleRules
 			new string[]
 			{
 				"Core", 
-				"DMV_TargetSystem", "Engine"
+				"Engine"
 			}
 			);
 			

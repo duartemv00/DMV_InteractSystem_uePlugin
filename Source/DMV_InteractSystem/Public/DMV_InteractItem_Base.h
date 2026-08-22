@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DMVTargetComponent.h"
 #include "DMV_ItemData_Base.h"
 #include "InteractComponent.h"
 #include "InteractInterface.h"
@@ -32,9 +31,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact")
 	UBillboardComponent* OuterInteractIcon;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
-	UDMVTargetComponent* TargetComponent;
 
 	ADMV_InteractItem_Base();
 
