@@ -47,6 +47,48 @@ on the current target. Anything can call `TryInteract` - a raw input handler, a 
 wires up its own way of finding a target and its own way of triggering an attempt, and this plugin
 does the rest.
 
+### Functionalities: the actor is just a visual wrapper
+
+The item side mirrors this split. An interactable actor's job is to look right and hold an
+`UDMV_InteractComponent`; that component's job is to hold the actual behavior, as a list of
+`UDMV_InteractFunctionality_Base` instances (`Functionalities`) - one per distinct behavior a
+designer authors in Blueprint (a Glow functionality, a Carry functionality, and so on). On
+`Interact`, the component runs every functionality that currently passes its own
+`CanExecute` check and executes it - independently, not as an all-or-nothing gate, so an
+interactable combining a Carry and a Glow functionality still glows even if something is currently
+blocking Carry. `ADMV_InteractItem_Base::Interact_Implementation` does nothing but forward to
+`InteractComponent->TriggerFunctionalities` - the base actor class is a convenience, not a
+requirement; any actor that adds a `UDMV_InteractComponent` and implements
+`IDMV_InteractInterface` itself (calling `TriggerFunctionalities` from its own `Interact` override)
+gets the same behavior without inheriting from `ADMV_InteractItem_Base` at all.
+
+This is deliberately the simple first pass: every functionality on a component runs independently,
+with no ordering or cross-functionality conditions. A more complex sequenced/conditional version
+(closer to `FInteractionStep`'s step list below) is a plausible future extension, not built yet.
+
+### Tag gating, GAS-shaped but GAS-free
+
+`UDMV_InteractFunctionality_Base` and `UDMV_InteractorComponent` mirror the tag-gating half of
+`UGameplayAbility`/`UAbilitySystemComponent` - without depending on the Gameplay Ability System at
+all (see [Responsibilities](#responsibilities-what-belongs-in-this-plugin)), since a
+`FGameplayTagContainer` is enough to build the same shape:
+
+- `UDMV_InteractorComponent::OwnedTags` is the interactor's analogue of an
+  `AbilitySystemComponent`'s owned tags (`AddOwnedTag`/`RemoveOwnedTag`) - e.g. `State.Stunned`,
+  `State.InDialogue`.
+- `UDMV_InteractFunctionality_Base::ActivationRequiredTags`/`ActivationBlockedTags` are checked
+  against the interactor's `OwnedTags`, mirroring a `GameplayAbility`'s own activation
+  requirements - the interactor must own all of the former and none of the latter.
+- `UDMV_InteractFunctionality_Base::FunctionalityTag` is an optional identifying tag a
+  functionality can carry; `UDMV_InteractorComponent::BlockFunctionalityTag`/`UnblockFunctionalityTag`
+  let an interactor block every functionality carrying a given tag outright, mirroring
+  `UAbilitySystemComponent::BlockAbilitiesWithTag` - regardless of that functionality's own
+  required/blocked tags.
+
+An interactor with no `UDMV_InteractorComponent` at all is treated as owning no tags and blocking
+nothing - `CanExecute` degrades to "does this functionality have any `ActivationRequiredTags`",
+never hard-fails just because the interactor isn't using this plugin's own component.
+
 An interaction plays out as a sequence of **steps** (`FInteractionStep`), each with its own
 duration, cost/requisites (by `FGameplayTag`), rewards, feedback (VFX/anim/sound), and two logic
 hooks (`StepLogic_Start`/`StepLogic_End`, arrays of `UDMV_InteractAbility_Base` instances) a
@@ -58,10 +100,11 @@ per-instance-configurable-instanced-object pattern `DMV_TargetSystem`'s Filters 
 | Concept | Class | Role |
 |---|---|---|
 | Interact interface | `IDMV_InteractInterface` (C++) | Declares the full interaction contract: `InRange`, `Hover(bool bGood)`, `UnHover`, `RemoteActivation(bool)`, `Interact(AActor*) -> bool`, `Inspect(AActor*, UStaticMesh*, FName, FName)`. All `BlueprintNativeEvent`s - default bodies are empty, subclasses override the ones they need. |
-| Interactable actor | `ADMV_InteractItem_Base` | The base actor: owns `Mesh`, inner/outer interact-prompt billboards, an `InteractComponent`, and a `UDMV_ItemData_Base` reference. Tracks `InteractStep` (which step of the sequence it's currently on) and `ListensTo`/`Activates` actor arrays (for interactables that chain/gate each other - not yet implemented beyond the data fields). Owns no targeting/detection component of any kind - see [Design intent](#design-intent). |
-| Interact component (item side) | `UDMV_InteractComponent` | Currently an empty scaffold (`BeginPlay` does nothing beyond `Super`) - presumably meant to hold future shared interact-side logic. Distinct from `UDMV_InteractorComponent` below, which is the *player*-side piece. |
-| Interactor component (player side) | `UDMV_InteractorComponent` | Goes on whatever should be able to perform interactions (a player pawn/controller). Holds a passively-set `CurrentInteractable`, and exposes `TryInteract()` as the one trigger-agnostic entry point - see [Design intent](#design-intent). |
-| Per-step logic hook | `UDMV_InteractAbility_Base` | `EditInlineNew`/`Blueprintable` `UObject` - not a `UGameplayAbility`, and deliberately so (see [Responsibilities](#responsibilities-what-belongs-in-this-plugin)) - with one function, `ExecuteCustomLogic(ADMV_InteractItem_Base*)`. A per-instance-configurable instanced object, same pattern as `DMV_TargetSystem`'s filters. |
+| Interactable actor | `ADMV_InteractItem_Base` | The base actor: owns `Mesh`, inner/outer interact-prompt billboards, an `InteractComponent`, and a `UDMV_ItemData_Base` reference. Tracks `InteractStep` (which step of the sequence it's currently on) and `ListensTo`/`Activates` actor arrays (for interactables that chain/gate each other - not yet implemented beyond the data fields). Owns no targeting/detection component of any kind - see [Design intent](#design-intent). Its `Interact_Implementation` does nothing but forward to `InteractComponent->TriggerFunctionalities` - see [Functionalities](#functionalities-the-actor-is-just-a-visual-wrapper). Using this base class isn't required - only having a `UDMV_InteractComponent` and implementing `IDMV_InteractInterface` is. |
+| Interact component (item side) | `UDMV_InteractComponent` | Holds this interactable's actual behavior as `Functionalities`, a `TArray<UDMV_InteractFunctionality_Base*>` (`Instanced`), and `TriggerFunctionalities(AActor*)` to run every one that currently passes its own `CanExecute` check. Distinct from `UDMV_InteractorComponent` below, which is the *player*-side piece. |
+| Interactor component (player side) | `UDMV_InteractorComponent` | Goes on whatever should be able to perform interactions (a player pawn/controller). Holds a passively-set `CurrentInteractable`, exposes `TryInteract()` as the one trigger-agnostic entry point, and holds `OwnedTags`/`BlockedFunctionalityTags` for the tag-gating system - see [Design intent](#design-intent) and [Tag gating](#tag-gating-gas-shaped-but-gas-free). |
+| Functionality | `UDMV_InteractFunctionality_Base` | `EditInlineNew`/`Blueprintable` `UObject` - not called "Ability" to avoid implying a Gameplay Ability System relationship, even though the concept (a per-instance-configurable instanced object, same pattern as `DMV_TargetSystem`'s filters) is the same idea. `CanExecute(AActor*)` checks its tags against the interactor; `ExecuteFunctionality(AActor*)` (`BlueprintNativeEvent`) is the actual per-functionality behavior, overridden per Blueprint subclass (a Glow functionality, a Carry functionality, ...). |
+| Per-step logic hook | `UDMV_InteractAbility_Base` | `EditInlineNew`/`Blueprintable` `UObject` - not a `UGameplayAbility`, and deliberately so (see [Responsibilities](#responsibilities-what-belongs-in-this-plugin)) - with one function, `ExecuteCustomLogic(ADMV_InteractItem_Base*)`. Belongs to the older, more complex step-sequence data model (`FInteractionStep`), separate from - and not yet integrated with - `UDMV_InteractFunctionality_Base` above; see [Functionalities](#functionalities-the-actor-is-just-a-visual-wrapper). |
 | Item data | `UDMV_ItemData_Base` (+ `UXM_InputInteraction_Data`, `UXM_DamageInteraction_Data`, `UXM_ProximityInteraction_Data`) | `UDataAsset`s holding the data described in [Design intent](#design-intent) - see [Known gaps](#known-gaps--open-design-questions) for the `XM_` naming leftover. |
 | Inspect | `ADMV_InspectItem` | A separate interactable that implements only `Inspect` - swaps its mesh to the inspected item and presumably feeds a `SceneCaptureComponent2D` to `WBP_Inspect`/`RT_Inspect` for an up-close rotate-and-view UI. |
 
@@ -115,13 +158,14 @@ Established explicitly so scope doesn't drift as the plugin grows:
 
 ## Known gaps / open design questions
 
-- **Most C++ behavior is still an empty stub.** `UDMV_InteractComponent::BeginPlay`,
-  `UDMV_InteractAbility_Base::ExecuteCustomLogic_Implementation`, and `ADMV_InteractItem_Base`'s
-  (non-)override of every `IDMV_InteractInterface` function are all either empty or absent. The step
-  sequence, reward granting, and the proximity/damage trigger types described above exist only as
-  data structures today, not as running logic. `UDMV_InteractorComponent`'s activation path
-  (`SetCurrentInteractable`/`TryInteract`) is the one piece of this plugin that's actually
-  implemented end to end - see Recent history.
+- **Most of the older step-sequence machinery is still an empty stub.**
+  `UDMV_InteractAbility_Base::ExecuteCustomLogic_Implementation` is empty, and `ADMV_InteractItem_Base`
+  overrides none of `IDMV_InteractInterface`'s other functions (`InRange`/`Hover`/`UnHover`/
+  `RemoteActivation`/`Inspect`) in C++. The step sequence, reward granting, and the
+  proximity/damage trigger types described in [Design intent](#design-intent) exist only as data
+  structures today, not as running logic. `UDMV_InteractorComponent`'s activation path
+  (`SetCurrentInteractable`/`TryInteract`) and the item-side `Functionalities`/`TriggerFunctionalities`
+  path are the two pieces of this plugin actually implemented end to end - see Recent history.
 - **`UDMV_InteractorComponent::TryInteract` doesn't manage the `Hover`/`UnHover`/`InRange` part of
   `IDMV_InteractInterface`'s contract** - only `Interact` itself. Wiring those up (e.g. calling
   `UnHover`/`InRange` on the old/new target when `SetCurrentInteractable` changes) was deliberately
@@ -147,6 +191,15 @@ Established explicitly so scope doesn't drift as the plugin grows:
 
 ## Recent history
 
+- Added `UDMV_InteractFunctionality_Base` and wired it into `UDMV_InteractComponent`
+  (`Functionalities`/`TriggerFunctionalities`) and `ADMV_InteractItem_Base::Interact_Implementation`
+  - see [Functionalities](#functionalities-the-actor-is-just-a-visual-wrapper). Also added
+  GAS-shaped (but GAS-free) tag gating: `OwnedTags`/`BlockFunctionalityTag` on
+  `UDMV_InteractorComponent`, `ActivationRequiredTags`/`ActivationBlockedTags`/`FunctionalityTag`
+  on `UDMV_InteractFunctionality_Base` - see [Tag gating](#tag-gating-gas-shaped-but-gas-free).
+  Deliberately the simple first pass: functionalities run independently with no ordering or
+  cross-functionality conditions; a sequenced/conditional version is a plausible future extension
+  on top of this, not built yet.
 - Renamed every source file and class in this module to consistently start with `DMV_`:
   `InteractComponent.h/.cpp` -> `DMV_InteractComponent.h/.cpp` (`UInteractComponent` ->
   `UDMV_InteractComponent`), `InteractInterface.h/.cpp` -> `DMV_InteractInterface.h/.cpp`

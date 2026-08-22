@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Components/ActorComponent.h"
 #include "DMV_InteractorComponent.generated.h"
 
@@ -41,6 +42,41 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interact")
 	bool TryInteract();
 
+	// TAGS - GAS-style gating without any dependency on the Gameplay Ability System (see the
+	// plugin README's Responsibilities section). OwnedTags is this interactor's own analogue of an
+	// AbilitySystemComponent's owned tags, checked by UDMV_InteractFunctionality_Base against its
+	// ActivationRequiredTags/ActivationBlockedTags. BlockedFunctionalityTags mirrors
+	// UAbilitySystemComponent::BlockAbilitiesWithTag - blocking every functionality whose own
+	// FunctionalityTag matches, regardless of that functionality's own tag requirements.
+
+	/** Adds a tag this interactor currently owns (e.g. "State.Stunned", "State.InDialogue"). */
+	UFUNCTION(BlueprintCallable, Category = "Interact|Tags")
+	void AddOwnedTag(FGameplayTag Tag);
+
+	UFUNCTION(BlueprintCallable, Category = "Interact|Tags")
+	void RemoveOwnedTag(FGameplayTag Tag);
+
+	UFUNCTION(BlueprintPure, Category = "Interact|Tags")
+	const FGameplayTagContainer& GetOwnedTags() const { return OwnedTags; }
+
+	/** Blocks every functionality whose FunctionalityTag matches Tag from executing for this
+	 *  interactor, regardless of that functionality's own ActivationRequiredTags/
+	 *  ActivationBlockedTags. */
+	UFUNCTION(BlueprintCallable, Category = "Interact|Tags")
+	void BlockFunctionalityTag(FGameplayTag Tag);
+
+	UFUNCTION(BlueprintCallable, Category = "Interact|Tags")
+	void UnblockFunctionalityTag(FGameplayTag Tag);
+
+	UFUNCTION(BlueprintPure, Category = "Interact|Tags")
+	bool IsFunctionalityTagBlocked(FGameplayTag Tag) const;
+
 private:
 	TWeakObjectPtr<AActor> CurrentInteractable;
+
+	UPROPERTY()
+	FGameplayTagContainer OwnedTags;
+
+	UPROPERTY()
+	FGameplayTagContainer BlockedFunctionalityTags;
 };

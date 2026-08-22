@@ -52,6 +52,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interact")
 	int32 GetCurrentStep();
 
-	
-	
+	//~ Begin IDMV_InteractInterface interface
+	/** Forwards straight to InteractComponent->TriggerFunctionalities - this actor is just a
+	 *  visual wrapper, the actual behavior lives in the component's Functionalities. */
+	virtual bool Interact_Implementation(AActor* Interactor) override;
+	//~ End IDMV_InteractInterface interface
 };

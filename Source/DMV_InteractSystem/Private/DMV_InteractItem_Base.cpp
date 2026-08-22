@@ -40,3 +40,8 @@ int32 ADMV_InteractItem_Base::GetCurrentStep()
 	return InteractStep;
 }
 
+bool ADMV_InteractItem_Base::Interact_Implementation(AActor* Interactor)
+{
+	return IsValid(InteractComponent) && InteractComponent->TriggerFunctionalities(Interactor);
+}
+
