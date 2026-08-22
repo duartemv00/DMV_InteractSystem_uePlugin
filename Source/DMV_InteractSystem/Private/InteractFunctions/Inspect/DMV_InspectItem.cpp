@@ -1,7 +1,7 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Inspect/DMV_InspectItem.h"
+#include "InteractFunctions/Inspect/DMV_InspectItem.h"
 
 
 ADMV_InspectItem::ADMV_InspectItem()

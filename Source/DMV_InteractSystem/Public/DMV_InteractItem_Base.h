@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DMV_ItemData_Base.h"
-#include "DMV_InteractComponent.h"
+#include "Components/DMV_InteractComponent.h"
 #include "DMV_InteractInterface.h"
 #include "Components/SphereComponent.h"
 #include "Components/BillboardComponent.h"

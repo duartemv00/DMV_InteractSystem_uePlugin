@@ -14,12 +14,13 @@ answer.
 
 **Status:** early. The C++ scaffolding (actor construction, component wiring, interface
 declarations) is in place, but almost every function body is an empty stub -
-`UDMV_InteractComponent::BeginPlay` does nothing beyond `Super::BeginPlay()`,
-`UDMV_InteractAbility_Base::ExecuteCustomLogic_Implementation` is empty, and
-`ADMV_InteractItem_Base` implements `IDMV_InteractInterface` but overrides none of its functions in
-C++ (that's presumably left to Blueprint subclasses - `BP_Door`/`BP_2Door`/`BP_InteractItem_Base`
-do reference `Interact`/`Hover`/`InRange`/`Inspect`; `BP_NPC` and `BP_InteractFeatures_Carry`
-reference none of them, so are likely placeholders same as some `DMV_Traps` types). The plugin was
+`UDMV_InteractComponent::BeginPlay` does nothing beyond `Super::BeginPlay()`, and
+`ADMV_InteractItem_Base` implements `IDMV_InteractInterface` but overrides only `Interact` in C++
+(the rest is presumably left to Blueprint subclasses - `BP_Door`/`BP_2Door`/`BP_InteractItem_Base`
+do reference `Interact`/`Hover`/`InRange`/`Inspect`; `BP_NPC` references none of them, likely a
+placeholder same as some `DMV_Traps` types - `BP_InteractFeatures_Carry` also references none of
+them, but that's expected: it's a `UDMV_InteractFunctionality_Base` subclass, not an actor, so it
+was never going to implement `IDMV_InteractInterface`). The plugin was
 recently renamed from `DMV_Interactables` (see the `CoreRedirects` in
 `Config/DefaultDMV_InteractSystem.ini`) - some classes still carry the old `XM_` prefix from before
 that rename (see [Known gaps](#known-gaps--open-design-questions)).
@@ -91,9 +92,12 @@ never hard-fails just because the interactor isn't using this plugin's own compo
 
 An interaction plays out as a sequence of **steps** (`FInteractionStep`), each with its own
 duration, cost/requisites (by `FGameplayTag`), rewards, feedback (VFX/anim/sound), and two logic
-hooks (`StepLogic_Start`/`StepLogic_End`, arrays of `UDMV_InteractAbility_Base` instances) a
-designer can use to run custom per-step behavior without touching the base actor's code - the same
-per-instance-configurable-instanced-object pattern `DMV_TargetSystem`'s Filters use.
+hooks (`StepLogic_Start`/`StepLogic_End`, arrays of `UDMV_InteractFunctionality_Base` instances) a
+designer can use to run custom per-step behavior without touching the base actor's code. This is
+the same `UDMV_InteractFunctionality_Base` the item-side component's `Functionalities` array uses
+above - originally a separate, near-identical class (`UDMV_InteractAbility_Base`) existed just for
+this step-sequence use, but the two were merged once it was clear they were the same concept aimed
+at two different levels of the same system (see Recent history).
 
 ## Core concepts
 
@@ -103,8 +107,7 @@ per-instance-configurable-instanced-object pattern `DMV_TargetSystem`'s Filters 
 | Interactable actor | `ADMV_InteractItem_Base` | The base actor: owns `Mesh`, inner/outer interact-prompt billboards, an `InteractComponent`, and a `UDMV_ItemData_Base` reference. Tracks `InteractStep` (which step of the sequence it's currently on) and `ListensTo`/`Activates` actor arrays (for interactables that chain/gate each other - not yet implemented beyond the data fields). Owns no targeting/detection component of any kind - see [Design intent](#design-intent). Its `Interact_Implementation` does nothing but forward to `InteractComponent->TriggerFunctionalities` - see [Functionalities](#functionalities-the-actor-is-just-a-visual-wrapper). Using this base class isn't required - only having a `UDMV_InteractComponent` and implementing `IDMV_InteractInterface` is. |
 | Interact component (item side) | `UDMV_InteractComponent` | Holds this interactable's actual behavior as `Functionalities`, a `TArray<UDMV_InteractFunctionality_Base*>` (`Instanced`), and `TriggerFunctionalities(AActor*)` to run every one that currently passes its own `CanExecute` check. Distinct from `UDMV_InteractorComponent` below, which is the *player*-side piece. |
 | Interactor component (player side) | `UDMV_InteractorComponent` | Goes on whatever should be able to perform interactions (a player pawn/controller). Holds a passively-set `CurrentInteractable`, exposes `TryInteract()` as the one trigger-agnostic entry point, and holds `OwnedTags`/`BlockedFunctionalityTags` for the tag-gating system - see [Design intent](#design-intent) and [Tag gating](#tag-gating-gas-shaped-but-gas-free). |
-| Functionality | `UDMV_InteractFunctionality_Base` | `EditInlineNew`/`Blueprintable` `UObject` - not called "Ability" to avoid implying a Gameplay Ability System relationship, even though the concept (a per-instance-configurable instanced object, same pattern as `DMV_TargetSystem`'s filters) is the same idea. `CanExecute(AActor*)` checks its tags against the interactor; `ExecuteFunctionality(AActor*)` (`BlueprintNativeEvent`) is the actual per-functionality behavior, overridden per Blueprint subclass (a Glow functionality, a Carry functionality, ...). |
-| Per-step logic hook | `UDMV_InteractAbility_Base` | `EditInlineNew`/`Blueprintable` `UObject` - not a `UGameplayAbility`, and deliberately so (see [Responsibilities](#responsibilities-what-belongs-in-this-plugin)) - with one function, `ExecuteCustomLogic(ADMV_InteractItem_Base*)`. Belongs to the older, more complex step-sequence data model (`FInteractionStep`), separate from - and not yet integrated with - `UDMV_InteractFunctionality_Base` above; see [Functionalities](#functionalities-the-actor-is-just-a-visual-wrapper). |
+| Functionality | `UDMV_InteractFunctionality_Base` | `EditInlineNew`/`Blueprintable` `UObject` - not called "Ability" to avoid implying a Gameplay Ability System relationship, even though the concept (a per-instance-configurable instanced object, same pattern as `DMV_TargetSystem`'s filters) is the same idea. `CanExecute(AActor*)` checks its tags against the interactor; `ExecuteFunctionality(AActor*)` (`BlueprintNativeEvent`) is the actual per-functionality behavior, overridden per Blueprint subclass (a Glow functionality, a Carry functionality, ...). Used both directly by `UDMV_InteractComponent::Functionalities` and by `FInteractionStep::StepLogic_Start`/`StepLogic_End` in the older step-sequence data model - one class serving both levels, see Recent history. |
 | Item data | `UDMV_ItemData_Base` (+ `UXM_InputInteraction_Data`, `UXM_DamageInteraction_Data`, `UXM_ProximityInteraction_Data`) | `UDataAsset`s holding the data described in [Design intent](#design-intent) - see [Known gaps](#known-gaps--open-design-questions) for the `XM_` naming leftover. |
 | Inspect | `ADMV_InspectItem` | A separate interactable that implements only `Inspect` - swaps its mesh to the inspected item and presumably feeds a `SceneCaptureComponent2D` to `WBP_Inspect`/`RT_Inspect` for an up-close rotate-and-view UI. |
 
@@ -149,18 +152,20 @@ Established explicitly so scope doesn't drift as the plugin grows:
   `UAbilitySystemComponent`, `UGameplayEffect`, or `UAttributeSet` anywhere in this plugin, and
   `DMV_InteractSystem.Build.cs` never depends on the `GameplayAbilities` module - only
   `GameplayTags` (tag identifiers, not the ability/effect runtime - a separate module, fine to keep
-  using). `UDMV_InteractAbility_Base` is a plain `UObject` despite the name, not a
-  `UGameplayAbility` - a deliberate choice, not an oversight. If a consuming project happens to use
-  GAS, that integration is the project's job at the boundary (e.g. a `UDMV_InteractAbility_Base`
-  subclass the project authors that talks to its own `UAbilitySystemComponent`) - this plugin
+  using). `UDMV_InteractFunctionality_Base` is a plain `UObject` despite the conceptual overlap with
+  abilities, not a `UGameplayAbility` - a deliberate choice, not an oversight. If a consuming
+  project happens to use GAS, that integration is the project's job at the boundary (e.g. a
+  `UDMV_InteractFunctionality_Base` subclass the project authors that talks to its own
+  `UAbilitySystemComponent`) - this plugin
   itself stays usable in non-GAS projects too. This also means reward granting (above) can't
   resolve "apply an attribute" through GAS - it needs its own, GAS-independent mechanism.
 
 ## Known gaps / open design questions
 
-- **Most of the older step-sequence machinery is still an empty stub.**
-  `UDMV_InteractAbility_Base::ExecuteCustomLogic_Implementation` is empty, and `ADMV_InteractItem_Base`
-  overrides none of `IDMV_InteractInterface`'s other functions (`InRange`/`Hover`/`UnHover`/
+- **Most of the older step-sequence machinery is still an empty stub.** The step sequence itself
+  (`FInteractionStep`/`StepLogic_Start`/`StepLogic_End`) is never actually walked/executed by
+  anything yet, and `ADMV_InteractItem_Base` overrides none of `IDMV_InteractInterface`'s other
+  functions (`InRange`/`Hover`/`UnHover`/
   `RemoteActivation`/`Inspect`) in C++. The step sequence, reward granting, and the
   proximity/damage trigger types described in [Design intent](#design-intent) exist only as data
   structures today, not as running logic. `UDMV_InteractorComponent`'s activation path
@@ -174,8 +179,8 @@ Established explicitly so scope doesn't drift as the plugin grows:
 - **Melee fields are baked directly into `FInteractionStep`**, which conflicts with the "combat
   resolution is out of scope" decision above - `MeleeEffectRange`/`NumberOfEnemiesAffectedByMelee`/
   `Strength`/`bCanStun`/`StunTime` should likely move behind the same `StepLogic_Start`/
-  `StepLogic_End` hook mechanism (a project-specific `UDMV_InteractAbility_Base` subclass) instead
-  of being dedicated struct fields the plugin itself would have to interpret.
+  `StepLogic_End` hook mechanism (a project-specific `UDMV_InteractFunctionality_Base` subclass)
+  instead of being dedicated struct fields the plugin itself would have to interpret.
 - **`BPI_Interact` (a Blueprint Interface in Content) vs. `IDMV_InteractInterface` (the C++
   interface)** - unclear from static inspection whether these are the same contract duplicated, or
   two genuinely different interfaces for different purposes (e.g. one for the item, one for
@@ -191,6 +196,21 @@ Established explicitly so scope doesn't drift as the plugin grows:
 
 ## Recent history
 
+- Merged `UDMV_InteractAbility_Base` into `UDMV_InteractFunctionality_Base` and deleted the former
+  entirely - they were the same concept (a per-instance-configurable, `EditInlineNew` logic hook)
+  aimed at two different levels of the system, with the only real differences being the
+  parameter type (`ADMV_InteractItem_Base*` vs. the more general `AActor*`) and that Functionality
+  had tag-gating and Ability didn't. `FInteractionStep::StepLogic_Start`/`StepLogic_End` now hold
+  `UDMV_InteractFunctionality_Base*` instead. Added a `ClassRedirect` (`DMV_InteractAbility_Base`
+  -> `DMV_InteractFunctionality_Base`) and repointed the two pre-existing `DMV_Interactables`-era
+  redirects at the merged class - `BP_InteractFeatures_Carry`, a `UDMV_InteractAbility_Base`
+  subclass, will re-parent automatically, but its `ExecuteCustomLogic` override needs manually
+  reconnecting to `ExecuteFunctionality` in the editor (different parameter type, so the redirect
+  can't do that part).
+- Reorganized source into subfolders: `Components/` holds `DMV_InteractComponent`/
+  `DMV_InteractorComponent`; `InteractFunctions/` holds `DMV_InteractFunctionality_Base` and the
+  `Inspect/` subfolder (`DMV_InspectItem`). Purely a file-layout change - no class renames, no
+  behavior change.
 - Added `UDMV_InteractFunctionality_Base` and wired it into `UDMV_InteractComponent`
   (`Functionalities`/`TriggerFunctionalities`) and `ADMV_InteractItem_Base::Interact_Implementation`
   - see [Functionalities](#functionalities-the-actor-is-just-a-visual-wrapper). Also added

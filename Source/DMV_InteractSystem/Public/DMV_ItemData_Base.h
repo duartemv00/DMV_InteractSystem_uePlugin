@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "DMV_InteractAbility_Base.h"
+#include "InteractFunctions/DMV_InteractFunctionality_Base.h"
 #include "NiagaraSystem.h"
 #include "Engine/DataAsset.h"
 #include "DMV_ItemData_Base.generated.h"
@@ -62,7 +62,7 @@ struct FItemData_Basics
 
 	// LOGIC
 	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Instanced, Category = "Basic|Interact|Visuals")
-	// TArray<UDMV_InteractAbility_Base*> InitialLogic;
+	// TArray<UDMV_InteractFunctionality_Base*> InitialLogic;
 };
 
 UENUM(BlueprintType)
@@ -191,7 +191,7 @@ struct FInteractionStep
 
 	// LOGIC I
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadOnly)
-	TArray<UDMV_InteractAbility_Base*> StepLogic_Start;
+	TArray<UDMV_InteractFunctionality_Base*> StepLogic_Start;
 	
 	// TIME
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -215,7 +215,7 @@ struct FInteractionStep
 	 * Will only be triggered if the StepDuration > 0
 	 */
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadOnly)
-	TArray<UDMV_InteractAbility_Base*> StepLogic_End;
+	TArray<UDMV_InteractFunctionality_Base*> StepLogic_End;
 
 	// EQUIP //
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")

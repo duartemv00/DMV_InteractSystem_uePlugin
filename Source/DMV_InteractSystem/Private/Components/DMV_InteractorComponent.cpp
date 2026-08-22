@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "DMV_InteractorComponent.h"
+#include "Components/DMV_InteractorComponent.h"
 #include "DMV_InteractInterface.h"
 
 UDMV_InteractorComponent::UDMV_InteractorComponent()

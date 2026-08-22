@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "DMV_InteractFunctionality_Base.h"
-#include "DMV_InteractorComponent.h"
+#include "InteractFunctions/DMV_InteractFunctionality_Base.h"
+#include "Components/DMV_InteractorComponent.h"
 #include "GameFramework/Actor.h"
 
 bool UDMV_InteractFunctionality_Base::CanExecute(AActor* Interactor) const

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "DMV_InteractFunctionality_Base.h"
+#include "InteractFunctions/DMV_InteractFunctionality_Base.h"
 #include "DMV_InteractComponent.generated.h"
 
 /**
