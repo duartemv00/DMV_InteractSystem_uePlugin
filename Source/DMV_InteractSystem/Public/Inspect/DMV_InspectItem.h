@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InteractInterface.h"
+#include "DMV_InteractInterface.h"
 #include "GameFramework/Actor.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "DMV_InspectItem.generated.h"
 
 UCLASS()
-class DMV_INTERACTSYSTEM_API ADMV_InspectItem : public AActor, public IInteractInterface
+class DMV_INTERACTSYSTEM_API ADMV_InspectItem : public AActor, public IDMV_InteractInterface
 {
 	GENERATED_BODY()
 

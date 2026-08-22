@@ -22,7 +22,7 @@ ADMV_InspectItem::ADMV_InspectItem()
 void ADMV_InspectItem::Inspect_Implementation(AActor* Interactor, UStaticMesh* Item, FName ItemName,
 	FName ItemDescription)
 {
-	IInteractInterface::Inspect_Implementation(Interactor, Item, ItemName, ItemDescription);
+	IDMV_InteractInterface::Inspect_Implementation(Interactor, Item, ItemName, ItemDescription);
 
 	Mesh->SetStaticMesh(Item);
 }

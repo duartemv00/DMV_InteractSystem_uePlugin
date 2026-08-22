@@ -1,28 +1,28 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "InteractInterface.generated.h"
+#include "DMV_InteractInterface.generated.h"
 
 UINTERFACE()
-class UInteractInterface : public UInterface
+class UDMV_InteractInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class DMV_INTERACTSYSTEM_API IInteractInterface
+class DMV_INTERACTSYSTEM_API IDMV_InteractInterface
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Player Interaction")
 	void InRange();
-	
+
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Player Interaction")
 	void Hover(bool bGood);
-	
+
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Player Interaction")
 	void UnHover();
 

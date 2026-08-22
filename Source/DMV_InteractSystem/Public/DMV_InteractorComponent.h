@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "DMVInteractorComponent.generated.h"
+#include "DMV_InteractorComponent.generated.h"
 
 /**
  * Attach to anything that should be able to perform interactions - typically a player pawn or
@@ -16,12 +16,12 @@
  * that, it never resolves a target on its own.
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class DMV_INTERACTSYSTEM_API UDMVInteractorComponent : public UActorComponent
+class DMV_INTERACTSYSTEM_API UDMV_InteractorComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	UDMVInteractorComponent();
+	UDMV_InteractorComponent();
 
 	/** Sets which actor this interactor should try to interact with next. Pass nullptr to clear it
 	 *  (e.g. the target left range/is no longer valid). Purely a passive store - this component
@@ -36,8 +36,8 @@ public:
 	/** Call this from wherever "the player pressed interact" is decided - a raw input handler, a
 	 *  GameplayAbility's ActivateAbility, anything. Trigger-agnostic by design: this component
 	 *  doesn't care what caused the attempt, only whether there's currently a valid target that
-	 *  implements IInteractInterface. Returns false if there's no current target, the target no
-	 *  longer implements IInteractInterface, or the target's own Interact() returns false. */
+	 *  implements IDMV_InteractInterface. Returns false if there's no current target, the target
+	 *  no longer implements IDMV_InteractInterface, or the target's own Interact() returns false. */
 	UFUNCTION(BlueprintCallable, Category = "Interact")
 	bool TryInteract();
 

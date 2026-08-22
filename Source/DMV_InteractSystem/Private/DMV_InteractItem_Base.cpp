@@ -20,7 +20,7 @@ ADMV_InteractItem_Base::ADMV_InteractItem_Base()
 	OuterInteractIcon = CreateDefaultSubobject<UBillboardComponent>(TEXT("OuterInteractIcon"));
 	OuterInteractIcon->SetupAttachment(RootComponent);
 	
-	InteractComponent = CreateDefaultSubobject<UInteractComponent>(TEXT("InteractComponent"));
+	InteractComponent = CreateDefaultSubobject<UDMV_InteractComponent>(TEXT("InteractComponent"));
 	
 	if (Item_Data)
 	{

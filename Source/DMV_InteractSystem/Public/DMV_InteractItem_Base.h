@@ -4,21 +4,21 @@
 
 #include "CoreMinimal.h"
 #include "DMV_ItemData_Base.h"
-#include "InteractComponent.h"
-#include "InteractInterface.h"
+#include "DMV_InteractComponent.h"
+#include "DMV_InteractInterface.h"
 #include "Components/SphereComponent.h"
 #include "Components/BillboardComponent.h"
 #include "GameFramework/Actor.h"
 #include "DMV_InteractItem_Base.generated.h"
 
 UCLASS()
-class DMV_INTERACTSYSTEM_API ADMV_InteractItem_Base : public AActor, public IInteractInterface
+class DMV_INTERACTSYSTEM_API ADMV_InteractItem_Base : public AActor, public IDMV_InteractInterface
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Base")
-	UInteractComponent* InteractComponent;
+	UDMV_InteractComponent* InteractComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Base")
 	USceneComponent* Root;
